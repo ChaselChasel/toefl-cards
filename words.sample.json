@@ -1,0 +1,12 @@
+{
+  "units": [
+    {"id":1,"title":"Sentence 01","words":[
+      {"w":"irrigation","def":"灌溉"},
+      {"w":"abundantly","def":"丰富地"}
+    ]},
+    {"id":2,"title":"Sentence 02","words":[
+      {"w":"anthropologist","def":"人类学家"},
+      {"w":"expression","def":"表情"}
+    ]}
+  ]
+}

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>100句 · 单词自测</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="appbar">
+    <h1>100句 · 单词自测</h1>
+    <button id="btn-settings">⚙️</button>
+  </header>
+  <main id="main">
+    <section id="loader" class="card">
+      <h2>载入词库</h2>
+      <p>导入 JSON 或 CSV 文件即可开始。</p>
+      <input type="file" id="file-input" accept=".json,.csv"/>
+      <button id="btn-enter" class="primary">进入</button>
+    </section>
+    <section id="unit-picker" class="card hidden">
+      <h2>选择单元</h2>
+      <div id="unit-grid" class="grid"></div>
+    </section>
+    <section id="quiz" class="card hidden">
+      <div class="quiz-header">
+        <button id="btn-back">返回</button>
+        <div id="progress"></div>
+      </div>
+      <div id="card" class="flashcard">
+        <div id="word" class="word">加载中</div>
+        <div id="definition" class="definition hidden"></div>
+      </div>
+      <div class="buttons">
+        <button id="btn-unknown" class="secondary">不知道</button>
+        <button id="btn-known" class="primary">知道</button>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

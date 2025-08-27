@@ -1,0 +1,12 @@
+body { font-family: system-ui, sans-serif; margin:0; background:#f6f7fb; }
+.appbar { background:#fff; padding:12px; display:flex; justify-content:space-between; }
+.card { background:#fff; border-radius:12px; padding:16px; margin:16px; }
+.hidden { display:none; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,64px); gap:8px; }
+.unit { background:#eef; padding:8px; border-radius:8px; text-align:center; cursor:pointer; }
+.flashcard { min-height:200px; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+.word { font-size:32px; font-weight:bold; }
+.definition { margin-top:10px; font-size:20px; color:#444; }
+.buttons { display:flex; gap:10px; margin-top:20px; }
+.primary { background:#0b70ff; color:#fff; padding:10px; border:none; border-radius:8px; }
+.secondary { background:#ddd; padding:10px; border:none; border-radius:8px; }
