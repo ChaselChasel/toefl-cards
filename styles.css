@@ -1,12 +1,37 @@
-body { font-family: system-ui, sans-serif; margin:0; background:#f6f7fb; }
-.appbar { background:#fff; padding:12px; display:flex; justify-content:space-between; }
-.card { background:#fff; border-radius:12px; padding:16px; margin:16px; }
-.hidden { display:none; }
-.grid { display:grid; grid-template-columns:repeat(auto-fill,64px); gap:8px; }
-.unit { background:#eef; padding:8px; border-radius:8px; text-align:center; cursor:pointer; }
-.flashcard { min-height:200px; display:flex; flex-direction:column; justify-content:center; align-items:center; }
-.word { font-size:32px; font-weight:bold; }
-.definition { margin-top:10px; font-size:20px; color:#444; }
-.buttons { display:flex; gap:10px; margin-top:20px; }
-.primary { background:#0b70ff; color:#fff; padding:10px; border:none; border-radius:8px; }
-.secondary { background:#ddd; padding:10px; border:none; border-radius:8px; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif; background: #f6f7fb; color: #111; }
+.appbar { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #fff; border-bottom: 1px solid #eee; z-index: 10; }
+.appbar h1 { margin: 0; font-size: 18px; font-weight: 700; }
+.appbar button { font-size: 18px; background: none; border: none; cursor: pointer; }
+#main { padding: 16px; max-width: 880px; margin: 0 auto; }
+.card { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 16px; box-shadow: 0 1px 1px rgba(0,0,0,0.02); }
+.card h2 { margin: 0 0 12px; font-size: 18px; }
+.hidden { display: none; }
+.loader-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+.file-btn { display: inline-block; padding: 12px 14px; border: 1px dashed #ccc; border-radius: 10px; cursor: pointer; }
+.file-btn input { display: none; }
+.link { text-decoration: none; color: #0b70ff; }
+.help { background: #fafbfe; padding: 10px; border-radius: 10px; border: 1px solid #eef1ff; }
+.primary, .secondary, .danger { border: none; border-radius: 10px; padding: 12px 16px; font-size: 16px; cursor: pointer; }
+.primary { background: #0b70ff; color: #fff; }
+.secondary { background: #eef2f8; }
+.danger { background: #ffe8ea; color: #b2001a; }
+.actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+.unit { background: #f3f6ff; border: 1px solid #e2e8ff; border-radius: 10px; padding: 10px 8px; text-align: center; cursor: pointer; }
+.unit .title { font-size: 12px; color: #444; }
+.unit .stats { font-size: 12px; color: #6b7280; }
+.quiz-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.progress { font-size: 14px; color: #374151; }
+.flashcard { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 42vh; border: 1px solid #eee; border-radius: 14px; background: #fcfdff; padding: 20px; text-align: center; }
+.word { font-weight: 700; font-size: clamp(26px, 7vw, 42px); line-height: 1.2; }
+.definition { margin-top: 14px; font-size: clamp(16px, 4.5vw, 22px); color: #374151; }
+.buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.footer { text-align: center; color: #6b7280; font-size: 12px; padding: 20px; }
+.sheet { position: fixed; inset: auto 0 0 0; border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.06); max-height: 78vh; overflow: auto; }
+.row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #eee; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 14px; border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+.toast.show { opacity: .96; }
+.big .word { font-size: clamp(28px, 9vw, 46px); }
+.big .definition { font-size: clamp(18px, 5vw, 26px); }
+@media (hover: hover) { .unit:hover { background: #eaf0ff; } }
