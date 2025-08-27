@@ -18,6 +18,16 @@
     bigFont: true
   };
 
+  // ===== 工具：把各种奇怪的 id 变成数字 =====
+  function toUnitId(val, idxFallback){
+    if (typeof val === 'number' && Number.isFinite(val)) return val;
+    if (typeof val === 'string'){
+      const m = val.match(/\d+/);         // 提取第一个数字
+      if (m) return Number(m[0]);
+    }
+    return idxFallback + 1;                // 实在没有就用顺序编号
+  }
+
   // 读取设置
   state.revealMode = store.get('reveal-mode', 'tap');
   state.shuffle    = store.get('shuffle', true);
@@ -82,13 +92,13 @@
     return false;
   }
 
-  // —— 统一字段名：word/definition → w/def —— //
+  // —— 统一字段 & id 容错：word/definition → w/def；id 取数字 —— //
   function normalizeData(raw){
     if (!raw || !Array.isArray(raw.units)) return raw;
     const norm = { units: [] };
-    for (const u of raw.units){
-      if (!u) continue;
-      const id = Number(u.id);
+    raw.units.forEach((u, idx) => {
+      if (!u) return;
+      const id = toUnitId(u.id, idx);
       const title = u.title ?? `Sentence ${String(id).padStart(2,'0')}`;
       const words = [];
       if (Array.isArray(u.words)){
@@ -101,7 +111,12 @@
         }
       }
       norm.units.push({ id, title, words });
-    }
+    });
+    // 去重并按 id 排序
+    const seen = new Set();
+    norm.units = norm.units
+      .filter(u => !seen.has(u.id) && seen.add(u.id))
+      .sort((a,b) => a.id - b.id);
     return norm;
   }
 
@@ -113,19 +128,30 @@
     state.data.units.forEach(u => {
       const stat = progress[u.id]?.knownCount ?? 0;
       const total = u.words.length;
-      const div = document.createElement('button');
-      div.className = 'unit';
-      div.innerHTML = `<div class="num">#${u.id}</div><div class="title">${u.title ?? ''}</div><div class="stats">${stat}/${total}</div>`;
-      div.addEventListener('click', () => startUnit(u.id));
-      el.unitGrid.appendChild(div);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'unit';
+      btn.innerHTML = `<div class="num">#${u.id}</div><div class="title">${u.title ?? ''}</div><div class="stats">${stat}/${total}</div>`;
+      btn.addEventListener('click', () => startUnit(u.id));
+      el.unitGrid.appendChild(btn);
     });
   }
 
   function startUnit(id){
-    state.unitId = id;
-    const u = state.data.units.find(x => x.id === id);
+    state.unitId = toUnitId(id, 0);
+    const u = state.data.units.find(x => x.id === state.unitId);
+
+    if (!u){
+      toast('未找到该单元（请检查 unit_id）');
+      return;
+    }
+    if (!u.words || u.words.length === 0){
+      toast('该单元没有单词');
+      return;
+    }
+
     const progress = store.get('progress', {});
-    const knownArr = new Set(progress[id]?.known ?? []);
+    const knownArr = new Set(progress[state.unitId]?.known ?? []);
     state.knownSet = knownArr;
 
     const all = u.words.map(w => ({...w}));
@@ -141,7 +167,7 @@
   function updateProgress(){
     if (!el.progress) return;
     const u = state.data.units.find(x => x.id === state.unitId);
-    const total = u.words.length;
+    const total = u?.words?.length ?? 0;
     const progress = store.get('progress', {});
     const knownCount = (progress[state.unitId]?.known ?? []).length;
     const left = state.queue.length;
@@ -149,21 +175,30 @@
   }
 
   function nextCard(){
+    // 队列空 → 试着重建（未掌握），还不行就提示并返回选单
     if (state.queue.length === 0){
-      toast('本单元完成');
       const u = state.data.units.find(x => x.id === state.unitId);
-      const all = u.words.map(w => ({...w}));
-      if (state.shuffle) shuffle(all);
+      if (!u || !u.words?.length){
+        toast('该单元没有单词'); show('#unit-picker'); return;
+      }
+      toast('本单元完成');
+      const all = (state.shuffle ? shuffle([...u.words]) : [...u.words]);
       state.queue = all.filter(w => !state.knownSet.has(w.w));
-      if (state.queue.length === 0) state.queue = all.slice();
+      if (state.queue.length === 0){
+        // 都掌握了：允许继续复习整单元
+        state.queue = all.slice();
+      }
+      if (state.queue.length === 0){
+        show('#unit-picker'); return;
+      }
     }
-    state.current = state.queue[0];
 
+    state.current = state.queue[0];
     const cur = state.current || { w:'', def:'' };
     if (el.word) el.word.textContent = cur.w || '';
     if (el.def) {
       const meaning = cur.def ?? cur.definition ?? '';
-      el.def.textContent = meaning || '';
+      el.def.textContent = meaning || '(此词未提供释义 / definition)';
       el.def.classList.add('hidden');  // 进题默认隐藏释义
     }
   }
@@ -172,12 +207,7 @@
   function revealThenProceed(known){
     if (!state.current) return;
 
-    if (el.def){
-      if (!el.def.textContent || el.def.textContent.trim()===''){
-        el.def.textContent = '(此词未提供释义 / definition)';
-      }
-      el.def.classList.remove('hidden');
-    }
+    if (el.def) el.def.classList.remove('hidden');
 
     setTimeout(() => {
       const cur = state.current;
@@ -207,6 +237,7 @@
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
+    return arr;
   }
 
   // 事件绑定
@@ -229,18 +260,19 @@
       } else {
         data = csvToData(text);
       }
-      data = normalizeData(data);   // ★ 导入后统一字段
+      data = normalizeData(data);   // ★ 导入后统一字段 & id
       validateData(data);
       store.set('words-data', data);
       state.data = data;
       toast('词库已导入');
+      show('#unit-picker'); buildUnits();
     } catch (err){
       console.error(err);
       toast('文件格式有误');
     }
   });
 
-  // CSV 解析（unit_id, word/definition）
+  // CSV 解析（unit_id 允许带文字，会自动提取数字）
   function csvToData(csv){
     const lines = csv.trim().split(/\r?\n/);
     const header = lines[0].split(',').map(s => s.trim());
@@ -252,7 +284,7 @@
     for (let i = 1; i < lines.length; i++){
       const parts = parseCSVLine(lines[i], header.length);
       if (!parts) continue;
-      const id = Number(parts[uIdx]);
+      const id = toUnitId(parts[uIdx], i-1);
       const w = parts[wIdx];
       const def = parts[dIdx];
       if (!map.has(id)) map.set(id, { id, title: `Sentence ${String(id).padStart(2,'0')}`, words: [] });
@@ -283,7 +315,8 @@
   function validateData(data){
     if (!data || !Array.isArray(data.units)) throw new Error('no units');
     data.units.forEach(u => {
-      if (typeof u.id !== 'number' || !Array.isArray(u.words)) throw new Error('bad unit');
+      if (typeof u.id !== 'number' || !Number.isFinite(u.id)) throw new Error('bad unit id');
+      if (!Array.isArray(u.words)) throw new Error('bad unit words');
       u.words.forEach(w => { if (!w.w) throw new Error('bad word'); });
     });
   }
@@ -320,4 +353,24 @@
   if (el.btnExport) el.btnExport.addEventListener('click', () => {
     const data = store.get('progress', {});
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const a = document.cre
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'progress.json';
+    a.click();
+  });
+  if (el.btnImportProgress) el.btnImportProgress.addEventListener('click', () => el.progressFile && el.progressFile.click());
+  if (el.progressFile) el.progressFile.addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const text = await f.text();
+      store.set('progress', JSON.parse(text));
+      toast('进度已导入');
+      buildUnits();
+    } catch {
+      toast('进度文件格式有误');
+    }
+  });
+
+  // 首屏
+  if (ensureData()){ show('#unit-picker'); buildUnits(); } else { show('#loader'); }
+})();
