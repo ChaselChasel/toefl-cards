@@ -13,27 +13,17 @@
     queue: [],
     current: null,
     knownSet: new Set(),
-    // 设置（和 UI 同步）
-    revealMode: 'tap',   // 'tap'（点卡片显示）；这里无论模式，点击"知道/不知道"都会先弹释义
+    revealMode: 'tap',
     shuffle: true,
     bigFont: true
   };
 
-  // 初始化设置
+  // 读取设置
   state.revealMode = store.get('reveal-mode', 'tap');
   state.shuffle    = store.get('shuffle', true);
   state.bigFont    = store.get('big-font', true);
 
-  // 应用设置到 UI（如果你的 index.html 里有这些控件）
-  const elReveal = $('#reveal-mode');
-  const elShuffle = $('#shuffle');
-  const elBig = $('#big-font');
-  if (elReveal) elReveal.value = state.revealMode;
-  if (elShuffle) elShuffle.checked = state.shuffle;
-  if (elBig) elBig.checked = state.bigFont;
-  document.body.classList.toggle('big', state.bigFont);
-
-  // 主要元素
+  // 元素
   const el = {
     loader: $('#loader'),
     unitPicker: $('#unit-picker'),
@@ -57,11 +47,20 @@
     btnExport: $('#btn-export'),
     btnImportProgress: $('#btn-import-progress'),
     progressFile: $('#progress-file'),
+    revealMode: $('#reveal-mode'),
+    shuffle: $('#shuffle'),
+    big: $('#big-font')
   };
 
-  // SW（可选）
+  // 应用设置
+  document.body.classList.toggle('big', state.bigFont);
+  if (el.revealMode) el.revealMode.value = state.revealMode;
+  if (el.shuffle)    el.shuffle.checked = state.shuffle;
+  if (el.big)        el.big.checked = state.bigFont;
+
+  // PWA
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
   }
 
   function toast(msg, t=1600){
@@ -79,8 +78,31 @@
 
   function ensureData(){
     const saved = store.get('words-data', null);
-    if (saved) { state.data = saved; return true; }
+    if (saved) { state.data = normalizeData(saved); return true; }
     return false;
+  }
+
+  // —— 统一字段名：word/definition → w/def —— //
+  function normalizeData(raw){
+    if (!raw || !Array.isArray(raw.units)) return raw;
+    const norm = { units: [] };
+    for (const u of raw.units){
+      if (!u) continue;
+      const id = Number(u.id);
+      const title = u.title ?? `Sentence ${String(id).padStart(2,'0')}`;
+      const words = [];
+      if (Array.isArray(u.words)){
+        for (const it of u.words){
+          if (!it) continue;
+          const w = it.w ?? it.word ?? it.term ?? '';
+          const def = it.def ?? it.definition ?? it.meaning ?? '';
+          if (!w) continue;
+          words.push({ w: String(w), def: String(def) });
+        }
+      }
+      norm.units.push({ id, title, words });
+    }
+    return norm;
   }
 
   function buildUnits(){
@@ -106,14 +128,11 @@
     const knownArr = new Set(progress[id]?.known ?? []);
     state.knownSet = knownArr;
 
-    // 构建本轮队列（默认只练未掌握）
     const all = u.words.map(w => ({...w}));
     if (state.shuffle) shuffle(all);
     state.queue = all.filter(w => !knownArr.has(w.w));
-    if (state.queue.length === 0){
-      // 都掌握了，也允许继续复习整单元
-      state.queue = all.slice();
-    }
+    if (state.queue.length === 0) state.queue = all.slice();
+
     nextCard();
     updateProgress();
     show('#quiz');
@@ -131,44 +150,42 @@
 
   function nextCard(){
     if (state.queue.length === 0){
-      // 本轮完成 → 重新仅保留未掌握，如果也没有，就整单元复习
       toast('本单元完成');
       const u = state.data.units.find(x => x.id === state.unitId);
       const all = u.words.map(w => ({...w}));
       if (state.shuffle) shuffle(all);
       state.queue = all.filter(w => !state.knownSet.has(w.w));
-      if (state.queue.length === 0){
-        state.queue = all.slice();
-      }
+      if (state.queue.length === 0) state.queue = all.slice();
     }
     state.current = state.queue[0];
-    if (el.word) el.word.textContent = state.current?.w ?? '';
+
+    const cur = state.current || { w:'', def:'' };
+    if (el.word) el.word.textContent = cur.w || '';
     if (el.def) {
-      el.def.textContent = state.current?.def ?? '';
-      // 关键：默认为“隐藏释义”，点击“知道/不知道”先展示 → 暂停 → 进入下一题
-      el.def.classList.add('hidden');
+      const meaning = cur.def ?? cur.definition ?? '';
+      el.def.textContent = meaning || '';
+      el.def.classList.add('hidden');  // 进题默认隐藏释义
     }
   }
 
-  // 统一处理点击答案：先显示释义，再轻微停顿，最后执行逻辑
+  // 点击答案：先显示释义 → 停顿 → 跳题
   function revealThenProceed(known){
     if (!state.current) return;
 
-    // 先展示释义
-    if (el.def) el.def.classList.remove('hidden');
+    if (el.def){
+      if (!el.def.textContent || el.def.textContent.trim()===''){
+        el.def.textContent = '(此词未提供释义 / definition)';
+      }
+      el.def.classList.remove('hidden');
+    }
 
-    // 稍作停顿（给用户看到释义的反馈）
     setTimeout(() => {
       const cur = state.current;
-      // 移出队头
       state.queue.shift();
-
       if (known){
-        // 记录为已掌握
         state.knownSet.add(cur.w);
         persistKnown();
       } else {
-        // 放回队列末尾，稍后再测
         state.queue.push(cur);
       }
       updateProgress();
@@ -186,13 +203,13 @@
   }
 
   function shuffle(arr){
-    for (let i = arr.length - 1; i > 0; i++){
+    for (let i = arr.length - 1; i > 0; i--){
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
   }
 
-  // ===== 事件绑定 =====
+  // 事件绑定
   if (el.btnEnter) el.btnEnter.addEventListener('click', () => {
     if (!ensureData()){
       toast('请先导入词库或使用示例');
@@ -205,15 +222,17 @@
     const file = e.target.files[0];
     if (!file) return;
     const text = await file.text();
-    let data;
     try {
+      let data;
       if (file.name.endsWith('.json')){
         data = JSON.parse(text);
       } else {
-        data = csvToData(text); // 如果你还没用到 CSV，可以删除这行和函数
+        data = csvToData(text);
       }
+      data = normalizeData(data);   // ★ 导入后统一字段
       validateData(data);
       store.set('words-data', data);
+      state.data = data;
       toast('词库已导入');
     } catch (err){
       console.error(err);
@@ -221,23 +240,23 @@
     }
   });
 
-  // CSV 转数据（可选）
+  // CSV 解析（unit_id, word/definition）
   function csvToData(csv){
     const lines = csv.trim().split(/\r?\n/);
     const header = lines[0].split(',').map(s => s.trim());
-    const idxU = header.indexOf('unit_id');
-    const idxW = header.indexOf('word');
-    const idxD = header.indexOf('definition');
-    if (idxU === -1 || idxW === -1 || idxD === -1) throw new Error('bad header');
+    const uIdx = header.findIndex(h => /unit[_ ]?id/i.test(h));
+    const wIdx = header.findIndex(h => /^(w|word|term)$/i.test(h));
+    const dIdx = header.findIndex(h => /^(def|definition|meaning)$/i.test(h));
+    if (uIdx === -1 || wIdx === -1 || dIdx === -1) throw new Error('bad header');
     const map = new Map();
     for (let i = 1; i < lines.length; i++){
       const parts = parseCSVLine(lines[i], header.length);
       if (!parts) continue;
-      const u = Number(parts[idxU]);
-      const w = parts[idxW];
-      const d = parts[idxD];
-      if (!map.has(u)) map.set(u, { id: u, title: `Sentence ${String(u).padStart(2,'0')}`, words: [] });
-      map.get(u).words.push({ w, def: d });
+      const id = Number(parts[uIdx]);
+      const w = parts[wIdx];
+      const def = parts[dIdx];
+      if (!map.has(id)) map.set(id, { id, title: `Sentence ${String(id).padStart(2,'0')}`, words: [] });
+      map.get(id).words.push({ w, def });
     }
     const units = Array.from(map.keys()).sort((a,b)=>a-b).map(k => map.get(k));
     return { units };
@@ -260,6 +279,7 @@
     if (out.length !== cols) return null;
     return out.map(s => s.trim());
   }
+
   function validateData(data){
     if (!data || !Array.isArray(data.units)) throw new Error('no units');
     data.units.forEach(u => {
@@ -268,14 +288,10 @@
     });
   }
 
-  // 答案按钮
+  // 控件事件
   if (el.btnKnown) el.btnKnown.addEventListener('click', () => revealThenProceed(true));
   if (el.btnUnknown) el.btnUnknown.addEventListener('click', () => revealThenProceed(false));
-
-  // 点卡片可手动切换释义（配合“点卡片显示”体验）
-  if (el.card) el.card.addEventListener('click', () => {
-    if (el.def) el.def.classList.toggle('hidden');
-  });
+  if (el.card) el.card.addEventListener('click', () => { if (el.def) el.def.classList.toggle('hidden'); });
 
   if (el.btnBack) el.btnBack.addEventListener('click', () => { show('#unit-picker'); buildUnits(); });
   if (el.btnReset) el.btnReset.addEventListener('click', () => {
@@ -287,13 +303,12 @@
     startUnit(state.unitId);
   });
 
-  // 设置面板（如果你的 HTML 含有这些控件）
   if (el.btnSettings) el.btnSettings.addEventListener('click', () => show('#settings'));
   if (el.btnCloseSettings) el.btnCloseSettings.addEventListener('click', () => { show('#unit-picker'); });
+  if (el.revealMode) el.revealMode.addEventListener('change', (e) => { state.revealMode = e.target.value; store.set('reveal-mode', state.revealMode); });
+  if (el.shuffle) el.shuffle.addEventListener('change', (e) => { state.shuffle = e.target.checked; store.set('shuffle', state.shuffle); });
+  if (el.big) el.big.addEventListener('change', (e) => { state.bigFont = e.target.checked; document.body.classList.toggle('big', state.bigFont); store.set('big-font', state.bigFont); });
 
-  if (elReveal) elReveal.addEventListener('change', (e) => { state.revealMode = e.target.value; store.set('reveal-mode', state.revealMode); });
-  if (elShuffle) elShuffle.addEventListener('change', (e) => { state.shuffle = e.target.checked; store.set('shuffle', state.shuffle); });
-  if (elBig) elBig.addEventListener('change', (e) => { state.bigFont = e.target.checked; document.body.classList.toggle('big', state.bigFont); store.set('big-font', state.bigFont); });
   if (el.btnClearData) el.btnClearData.addEventListener('click', () => {
     if (confirm('清除全部词库与进度')){
       store.remove('words-data'); store.remove('progress');
@@ -305,24 +320,4 @@
   if (el.btnExport) el.btnExport.addEventListener('click', () => {
     const data = store.get('progress', {});
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'progress.json';
-    a.click();
-  });
-  if (el.btnImportProgress) el.btnImportProgress.addEventListener('click', () => el.progressFile && el.progressFile.click());
-  if (el.progressFile) el.progressFile.addEventListener('change', async (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    try {
-      const text = await f.text();
-      store.set('progress', JSON.parse(text));
-      toast('进度已导入');
-      buildUnits();
-    } catch {
-      toast('进度文件格式有误');
-    }
-  });
-
-  // 首屏
-  if (ensureData()){ show('#unit-picker'); buildUnits(); } else { show('#loader'); }
-})();
+    const a = document.cre
