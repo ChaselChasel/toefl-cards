@@ -6,39 +6,111 @@
   <title>100句 · 单词自测</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#ffffff">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="styles.css">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
   <header class="appbar">
     <h1>100句 · 单词自测</h1>
-    <button id="btn-settings">⚙️</button>
+    <button id="btn-settings" aria-label="设置" title="设置">⚙️</button>
   </header>
+
   <main id="main">
+    <!-- 导入词库 -->
     <section id="loader" class="card">
       <h2>载入词库</h2>
-      <p>导入 JSON 或 CSV 文件即可开始。</p>
-      <input type="file" id="file-input" accept=".json,.csv"/>
+      <p>不需要服务器。把你的词库以 <strong>JSON 或 CSV</strong> 文件导入即可（自动保存在本地）。</p>
+      <div class="loader-actions">
+        <label class="file-btn">
+          <input type="file" id="file-input" accept=".json,.csv" />
+          选择文件导入
+        </label>
+        <a class="link" href="words.sample.json" download>下载示例 JSON</a>
+        <a class="link" href="words.sample.csv" download>下载示例 CSV</a>
+      </div>
+      <details>
+        <summary>CSV / JSON 格式说明</summary>
+        <div class="help">
+          <p><strong>JSON</strong> 结构：</p>
+<pre><code>{
+  "units": [
+    {"id": 1, "title": "Sentence 01", "words": [
+      {"w":"irrigation", "def":"灌溉"},
+      {"w":"abundantly", "def":"丰富地"}
+    ]},
+    {"id": 2, "title": "Sentence 02", "words": [ ... ]}
+  ]
+}
+</code></pre>
+          <p><strong>CSV</strong> 三列表头：<code>unit_id,word,definition</code></p>
+        </div>
+      </details>
       <button id="btn-enter" class="primary">进入</button>
     </section>
+
+    <!-- 选择单元 -->
     <section id="unit-picker" class="card hidden">
       <h2>选择单元</h2>
       <div id="unit-grid" class="grid"></div>
+      <div class="actions">
+        <button id="btn-export" class="secondary">导出我的进度</button>
+        <button id="btn-import-progress" class="secondary">导入进度</button>
+        <input type="file" id="progress-file" accept=".json" style="display:none">
+      </div>
     </section>
+
+    <!-- 练习 -->
     <section id="quiz" class="card hidden">
       <div class="quiz-header">
         <button id="btn-back">返回</button>
-        <div id="progress"></div>
+        <div id="progress" class="progress"></div>
+        <button id="btn-reset" class="danger">重置本单元</button>
       </div>
+
       <div id="card" class="flashcard">
         <div id="word" class="word">加载中</div>
         <div id="definition" class="definition hidden"></div>
       </div>
+
       <div class="buttons">
         <button id="btn-unknown" class="secondary">不知道</button>
         <button id="btn-known" class="primary">知道</button>
       </div>
     </section>
+
+    <!-- 设置 -->
+    <section id="settings" class="card sheet hidden">
+      <h2>设置</h2>
+      <label class="row">
+        <span>显示释义方式</span>
+        <select id="reveal-mode">
+          <option value="tap">点卡片显示</option>
+          <option value="auto">答题后自动显示</option>
+        </select>
+      </label>
+      <label class="row">
+        <span>随机顺序</span>
+        <input type="checkbox" id="shuffle" checked>
+      </label>
+      <label class="row">
+        <span>每张卡片字体大号</span>
+        <input type="checkbox" id="big-font" checked>
+      </label>
+      <div class="actions">
+        <button id="btn-clear-data" class="danger">清除全部数据</button>
+        <button id="btn-close-settings" class="primary">完成</button>
+      </div>
+    </section>
   </main>
+
+  <footer class="footer">
+    <span>可离线使用 · 适配手机平板</span>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
   <script src="app.js"></script>
 </body>
 </html>
