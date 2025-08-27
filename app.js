@@ -1,3 +1,4 @@
+console.log('app.js v3 loaded');  // ← 每次改动版本号
 (() => {
   const $ = (sel) => document.querySelector(sel);
 
@@ -374,3 +375,4 @@
   // 首屏
   if (ensureData()){ show('#unit-picker'); buildUnits(); } else { show('#loader'); }
 })();
+
