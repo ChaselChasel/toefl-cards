@@ -1,12 +1,31 @@
 {
   "units": [
-    {"id":1,"title":"Sentence 01","words":[
-      {"w":"irrigation","def":"灌溉"},
-      {"w":"abundantly","def":"丰富地"}
-    ]},
-    {"id":2,"title":"Sentence 02","words":[
-      {"w":"anthropologist","def":"人类学家"},
-      {"w":"expression","def":"表情"}
-    ]}
+    {
+      "id": 1,
+      "title": "Sentence 01",
+      "words": [
+        {"w": "essentially", "def": "本质上"},
+        {"w": "theory", "def": "理论"},
+        {"w": "abstract", "def": "抽象的"}
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Sentence 02",
+      "words": [
+        {"w": "irrigation", "def": "灌溉"},
+        {"w": "abundantly", "def": "丰富地"},
+        {"w": "cactus", "def": "仙人掌"}
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Sentence 03",
+      "words": [
+        {"w": "anthropologist", "def": "人类学家"},
+        {"w": "universally", "def": "普遍地"},
+        {"w": "expression", "def": "表达；表情"}
+      ]
+    }
   ]
 }
